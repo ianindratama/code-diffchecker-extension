@@ -146,7 +146,7 @@ src/
 ### Setup
 
 ```bash
-git clone https://github.com/dicodingacademy/code-diffchecker.git
+git clone https://github.com/ianindratama/code-diffchecker-extension.git
 cd code-diffchecker
 npm install
 ```
