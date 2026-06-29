@@ -1,3 +1,8 @@
+> **HISTORICAL** — The original pre-implementation architecture-review brief for the VS Code-only
+> extension. Kept for design rationale only. Note: §3 here says "Git >= 2.25" — the **actual**
+> implemented requirement is **Git ≥ 2.28** (`--filter=blob:none` has bugs in 2.25–2.27).
+> For current docs see [README.md](../../README.md) and [CLAUDE.md](../../CLAUDE.md).
+
 # System Instruction: VS Code Extension Architecture Review
 
 ## Role

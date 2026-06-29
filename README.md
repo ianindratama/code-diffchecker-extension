@@ -1,248 +1,203 @@
-# Code Diff-Checker — VS Code Extension
+# Code Diff-Checker
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-%3E%3D1.85.0-blue?logo=visual-studio-code)
+![Node](https://img.shields.io/badge/Node-%3E%3D18-green?logo=node.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-27%20passing-brightgreen)
 
-> A VS Code extension that lets students compare their local project against a final solution hosted on GitHub, using a native TreeView UI with file-by-file diffs.
+> Compare your local work-in-progress project against a final solution hosted on GitHub — as a **VS Code extension** (native TreeView, side-by-side diffs) or a **command-line tool** that works in any editor.
 
 **Built for [Dicoding Academy](https://www.dicoding.com/)** — an EdTech platform where students learn by building real projects.
 
----
-
-## ✨ Features
-
-### 🔄 Automated Solution Fetching
-The extension auto-activates when a project contains a `.vscode/course-project.json` config file. It reads the GitHub URL, branch, and target folder to fetch only the relevant solution files.
-
-### 📁 Git Sparse-Checkout
-Uses sparse-checkout to download **only the specific folder** needed for the current project — saving bandwidth and time by ignoring the rest of the monorepo.
-
-### 🌳 Sidebar TreeView
-A custom panel that visually lists all differing files, grouped by category (**Added**, **Modified**, **Deleted**) with themed icons. Clicking a file opens VS Code's native side-by-side diff editor.
-
-### 📝 Dual Comparison Modes
-- **Full Project Diff** — Compare the entire local project against the solution tree
-- **Single File Diff** — Compare just the currently open file via right-click context menu or the editor title bar icon
-
-### 🔴 Real-Time File Watching
-When the student saves, creates, or deletes a file, the TreeView automatically updates within 300ms (debounced for performance).
-
-### 🔔 Background Update Notifications
-Silently checks for solution updates in the background. If a newer version is available, a toast notification prompts the student to update.
-
-### 🛡️ Smart Edge-Case Handling
-- **Cross-platform line endings** — Normalizes CRLF/LF before comparison
-- **Binary file detection** — Scans first 8KB for null bytes; binary files are flagged and prevented from opening in the text diff editor
-- **Graceful Git process management** — Cross-platform process cleanup (Windows `taskkill` / POSIX signals) with timeouts
-- **Failed pulls auto-recover** — Nukes broken cache and re-clones from scratch
-
-> **Pedagogical design**: There is intentionally **no "Apply Changes" button**. Students must manually read the diff and copy code — this encourages deeper learning.
+> **Pedagogical design:** There is intentionally **no "Apply Changes" button**. Students read the diff and copy code by hand — this is a deliberate learning constraint, not a missing feature.
 
 ---
 
-## 📋 Prerequisites
+## How it works
 
-- **VS Code** ≥ 1.85.0
-- **Git** ≥ 2.28 (required for `--filter=blob:none` sparse-checkout)
-- **Node.js** ≥ 18 (for development only)
+1. A starter project contains a `.diffchecker.json` (or legacy `.vscode/course-project.json`) file pointing to a GitHub repo, branch, and a target folder inside it.
+2. The tool performs a Git **sparse-checkout** of only that target folder — no full-repo download, even for large monorepos.
+3. It computes a file-by-file **diff** between the student's local files and the fetched solution (added / modified / deleted, with binary detection and CRLF normalization).
+4. Results are shown in the **VS Code sidebar TreeView** or printed to the **terminal** by the CLI.
+
+The diff logic is shared: both front-ends are thin layers over one editor-agnostic core library (see [Architecture](#architecture)).
 
 ---
 
-## 🚀 Getting Started
+## Quick start — VS Code extension
 
-### For Students (Using the Extension)
+**Prerequisites:** VS Code ≥ 1.85.0 · Git ≥ 2.28
 
-1. **Install** the extension from the VS Code Marketplace *(or install the `.vsix` file manually)*
-2. Open a project that contains a `.vscode/course-project.json` file
-3. The extension activates automatically — look for the **Code Diff-Checker** panel in the sidebar
-4. Run **"Fetch Solution"** from the Command Palette (`Ctrl+Shift+P` → `Code Diff-Checker: Fetch Solution`) or click the download icon in the TreeView header
-5. Click on any file in the TreeView to see the diff
+1. Install the **Code Diff-Checker** extension *(from the Marketplace once published, or build a `.vsix` locally — see [Development](#development))*.
+2. Open a project that contains a `.diffchecker.json` (or `.vscode/course-project.json`) file. The extension auto-activates.
+3. Open the **Code Diff-Checker** panel in the activity bar and run **Fetch Solution** (panel header, Command Palette → `Code Diff-Checker: Fetch Solution`, or the status-bar button).
+4. Click any file in the TreeView to open VS Code's native side-by-side diff. Right-click a file in the editor (or use the editor title icon) to **Compare Current File**.
 
-### Configuration File
+The TreeView re-diffs automatically (300 ms debounce) as you save, create, or delete files.
 
-Create a `.vscode/course-project.json` file in your project root:
+---
+
+## Quick start — CLI
+
+**Prerequisites:** Node.js ≥ 18 · Git ≥ 2.28
+
+```bash
+# Once published to npm:
+npm install -g @dicodingacademy/code-diffchecker
+
+# From source (current — the package is not yet published):
+git clone https://github.com/ianindratama/code-diffchecker-extension.git
+cd code-diffchecker-extension
+npm install
+npm run build
+npm link --workspace=@dicodingacademy/code-diffchecker   # exposes the `diffchecker` command
+```
+
+Then, inside a student project:
+
+```bash
+diffchecker init     # interactively create a .diffchecker.json
+diffchecker fetch    # sparse-checkout the solution and show a diff summary
+diffchecker diff     # list all differences
+diffchecker diff lib/main.dart   # unified, colorized diff for one file
+```
+
+---
+
+## CLI command reference
+
+```
+diffchecker <command> [options]
+```
+
+| Command | Description |
+|---|---|
+| `diffchecker init` | Interactively create a `.diffchecker.json` (prompts for repo URL, branch, target folder, ignore paths). |
+| `diffchecker fetch` | Clone or update the solution via sparse-checkout, then print a diff summary. |
+| `diffchecker diff` | Print all differences grouped by status (added / modified / deleted). Auto-fetches if no cache exists. |
+| `diffchecker diff <file>` | Print a unified, colorized diff for a single file (or "matches the solution" / "binary" / "extra file"). |
+| `diffchecker watch` | Watch the project and re-diff on every change (300 ms debounce). Exits on Ctrl+C. |
+| `diffchecker cache info` | Show the cache root, its size, and the current project's cache status. |
+| `diffchecker cache clear` | Delete the cached solution(s). |
+
+**Global options** (apply to every command):
+
+| Option | Effect |
+|---|---|
+| `--json` | Emit machine-readable JSON (no spinner, no ANSI colors). Useful for scripting. |
+| `--no-color` | Disable colored output. |
+| `--version`, `--help` | Print version / help (built-in). |
+
+**Exit codes:** `0` = success / no differences · `1` = differences found · `2` = error (bad config, missing Git, etc.). This makes `diffchecker diff` usable as a CI/scripting check.
+
+**Cache location:** `$XDG_CACHE_HOME/diffchecker` (falls back to `~/.cache/diffchecker`), with one MD5-hashed subdirectory per `repoUrl + branch + targetFolder`.
+
+---
+
+## Configuration file
+
+Create a `.diffchecker.json` at your project root (or run `diffchecker init`):
 
 ```json
 {
   "repoUrl": "https://github.com/dicodingacademy/a159-flutter-pemula-labs.git",
   "branch": "main",
-  "targetFolder": "navigation_project",
-  "ignorePaths": ["build/", "*.iml"]
+  "targetFolder": "wisatabandung",
+  "ignorePaths": ["build/", ".dart_tool/", ".idea/", "*.iml"]
 }
 ```
 
 | Field | Required | Description |
 |---|---|---|
-| `repoUrl` | ✅ | GitHub HTTPS clone URL |
-| `branch` | ✅ | Branch containing the solution |
-| `targetFolder` | ✅ | Folder path within the repo to compare against |
-| `ignorePaths` | ❌ | Glob patterns for files to exclude from comparison (defaults to `[]`) |
+| `repoUrl` | ✅ | GitHub **HTTPS** clone URL (must match `https://…/…`). Solution repos are expected to be public. |
+| `branch` | ✅ | Branch containing the solution. |
+| `targetFolder` | ✅ | Folder path *within the repo* to compare against. |
+| `ignorePaths` | ❌ | Array of [minimatch](https://github.com/isaacs/minimatch) glob patterns to exclude (defaults to `[]`). |
+
+**Config discovery & precedence.** Both front-ends look for, in order:
+
+1. `.diffchecker.json` (project root) — preferred.
+2. `.vscode/course-project.json` — legacy, still fully supported.
+
+The first file found wins. `.git/`, `.DS_Store`, and the config files themselves are always ignored; the rest of `.vscode/` (e.g. `launch.json`) is diffed normally.
 
 ---
 
-## 🎮 Available Commands
+## Architecture
 
-| Command | Description | Access |
-|---|---|---|
-| **Fetch Solution** | Clone/update the solution and compute diff | Command Palette, TreeView header, Status Bar |
-| **Compare Current File** | Diff the active editor file against the solution | Right-click context menu, Editor title bar |
-| **Refresh Diff** | Re-compute diff from existing cache (no network) | TreeView header |
-| **Clear Cache** | Delete the cached solution and reset the TreeView | TreeView header menu |
+This repository is an **npm-workspaces monorepo** with three packages:
+
+```
+code-diffchecker-extension/        # workspace root (private)
+├── tsconfig.base.json             # shared compiler options (CommonJS, ES2020, strict)
+└── packages/
+    ├── core/                      # @dicodingacademy/code-diffchecker-core (private)
+    │   └── src/                   # config · gitService · cacheManager · diffEngine
+    │       │                      # processManager · constants · types · index (barrel)
+    │       └── …                  # ZERO vscode imports — pure Node (fs/path/crypto/child_process)
+    ├── cli/                       # @dicodingacademy/code-diffchecker  →  `diffchecker` binary
+    │   └── src/                   # index (commander tree) · commands/{fetch,diff,watch,cache,init}
+    │       │                      # cachePaths (XDG) · errors · types
+    └── vscode/                    # code-diffchecker (the VS Code extension)
+        └── src/                   # extension · treeViewProvider · gitBinary (vscode→core git glue)
+```
+
+**Dependency direction:** both `cli` and `vscode` depend on `core`; nothing depends on `cli` or `vscode`.
+
+```
+core  ◀──  cli      (terminal front-end)
+  ▲
+  └──────  vscode   (extension front-end)
+```
+
+**The hard boundary:** `packages/core` must never import `vscode`. The only editor-specific glue in the extension is [packages/vscode/src/gitBinary.ts](packages/vscode/src/gitBinary.ts), which reads VS Code's `git.path` setting and passes it to core's `resolveGitBinary()`. The CLI supplies its own values (cwd, cache root, git path) the same way.
 
 ---
 
-## 🏗️ Architecture
+## Development
 
-```
-src/
-├── extension.ts          # Entry point — registers commands, orchestrates modules
-├── types.ts              # Shared TypeScript interfaces
-├── constants.ts          # Timeouts, ignore patterns, min Git version
-├── config.ts             # Parses & validates .vscode/course-project.json
-├── processManager.ts     # Cross-platform child_process wrapper with timeout
-├── gitService.ts         # Git operations (clone, fetch, pull, version check)
-├── cacheManager.ts       # Cache lifecycle (MD5-hashed directories)
-├── diffEngine.ts         # Walks both trees, classifies added/modified/deleted
-├── treeViewProvider.ts   # Sidebar TreeView UI with themed icons
-└── test/
-    ├── config.test.ts       # 9 tests — config validation
-    ├── gitService.test.ts   # 9 tests — Git version validation
-    ├── diffEngine.test.ts   # 9 tests — diff classification, binary detection
-    └── __mocks__/vscode.js  # Minimal vscode API mock
-```
-
-### Module Flow
-
-```
-┌──────────────┐     ┌──────────────┐     ┌────────────────┐
-│  config.ts   │────▶│ gitService.ts│────▶│ cacheManager.ts│
-│  (load JSON) │     │ (sparse clone)│     │  (MD5 cache)   │
-└──────────────┘     └──────┬───────┘     └────────────────┘
-                            │
-                            ▼
-                   ┌────────────────┐     ┌──────────────────┐
-                   │ diffEngine.ts  │────▶│treeViewProvider.ts│
-                   │ (walk & diff)  │     │   (sidebar UI)    │
-                   └────────────────┘     └──────────────────┘
-```
-
-### Key Design Decisions
-
-| Decision | Rationale |
-|---|---|
-| Git ≥ 2.28 required | `--filter=blob:none` has bugs in 2.25–2.27 |
-| `taskkill /pid /T /F` on Windows | `process.kill()` sends POSIX signals that crash the Extension Host |
-| Cache uses MD5 hash of config | Ensures per-project isolation in `globalStorageUri` |
-| Only `.vscode/course-project.json` is ignored | The rest of `.vscode/` (like `launch.json`) can be diffed |
-| Binary detection via null-byte scan | First 8KB checked — prevents VS Code from rendering binary garbage |
-| Failed pulls auto-nuke cache | Guarantees a clean state on next attempt |
-
----
-
-## 🛠️ Development
-
-### Setup
+**Prerequisites:** Node.js ≥ 18 · Git ≥ 2.28 · (VS Code ≥ 1.85.0 to run the extension)
 
 ```bash
 git clone https://github.com/ianindratama/code-diffchecker-extension.git
-cd code-diffchecker
-npm install
+cd code-diffchecker-extension
+npm install            # installs all workspaces and links them together
 ```
 
-### Build & Run
+### Build
 
 ```bash
-# Compile (single build via esbuild)
-npm run compile
-
-# Watch mode (auto-rebuild on changes)
-npm run watch
-
-# Run unit tests
-node run-tests.js
-
-# Lint
-npm run lint
+npm run build          # builds all packages in order: core → vscode → cli
+npm run build:core     # tsc → packages/core/dist
+npm run build:vscode   # esbuild → packages/vscode/out/extension.js
+npm run build:cli      # tsc → packages/cli/out
+npm run watch          # rebuild the extension on change (esbuild watch)
 ```
 
-### Debug
-
-1. Open this project in VS Code
-2. Press **F5** to launch the Extension Development Host
-3. In the new window, open a project with a `.vscode/course-project.json` file
-4. Test the extension commands and TreeView
-
-### Package for Distribution
+### Test & lint
 
 ```bash
-npx @vscode/vsce package
+npm test               # run the core unit tests
+npm run test:all       # run tests across every workspace that has them
+npm run lint           # ESLint over packages/*/src
 ```
 
-This generates a `.vsix` file that can be installed manually or published to the VS Code Marketplace.
+### Debug the extension
 
----
+1. Open the repo in VS Code and press **F5** to launch the Extension Development Host.
+2. In the new window, open a project containing a `.diffchecker.json` file.
+3. Exercise the commands and the TreeView.
 
-## ✅ Tests
-
-27 unit tests across three modules — all passing.
-
-| Module | Tests | What's Covered |
-|---|---|---|
-| **Config Loader** | 9 | Valid config, missing fields, invalid URL, malformed JSON |
-| **Git Service** | 9 | Version validation (2.28+ required, Windows format, edge cases) |
-| **Diff Engine** | 9 | Add/modify/delete classification, ignore layers, binary detection, CRLF normalization |
+### Package the extension
 
 ```bash
-# Run all tests
-node run-tests.js
+npm run build:vscode
+cd packages/vscode && npx @vscode/vsce package --no-dependencies
 ```
 
----
-
-## 📂 Project Structure
-
-```
-code-diffchecker-extension/
-├── .vscode/
-│   ├── launch.json          # F5 debug config
-│   └── tasks.json           # Watch build task
-├── src/                     # TypeScript source
-│   ├── test/                # Unit tests + mocks
-│   └── *.ts                 # Core modules (see Architecture)
-├── out/                     # Compiled output (gitignored)
-├── package.json             # Extension manifest
-├── tsconfig.json            # TypeScript config (strict mode)
-├── esbuild.js               # Build script
-├── run-tests.js             # Test runner
-├── .eslintrc.json           # Linting rules
-└── .vscodeignore            # Packaging exclusions
-```
+Core is bundled into `out/extension.js` by esbuild, so the `.vsix` ships without `node_modules`.
 
 ---
 
-## 🤝 Contributing
+## Acknowledgments
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -m 'Add some feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
-
-Please ensure:
-- All existing tests pass (`node run-tests.js`)
-- TypeScript compiles with zero errors (`npm run compile`)
-- Code follows the existing ESLint rules (`npm run lint`)
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Built for [Dicoding Academy](https://www.dicoding.com/) to help students learn by comparing their work against reference solutions in a guided, educational workflow.
+Built for [Dicoding Academy](https://www.dicoding.com/) to help students learn by comparing their work against reference solutions in a guided, editor-agnostic workflow.

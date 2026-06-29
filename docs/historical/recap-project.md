@@ -1,3 +1,7 @@
+> **HISTORICAL** — A feature recap of the *pre-monorepo* VS Code-only extension. The features
+> described still exist (now powered by the shared `core` package), but the structure is outdated.
+> For current docs see [README.md](../../README.md) and [CLAUDE.md](../../CLAUDE.md).
+
 # Code Diff-Checker Extension: Feature Recap
 
 This extension allows students to compare their local project against a final solution hosted on GitHub using a native VS Code UI. It enforces manual reading and copying of differences (no "Apply Changes" button), which is a pedagogical requirement for effective learning.

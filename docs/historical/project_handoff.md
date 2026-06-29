@@ -1,3 +1,7 @@
+> **HISTORICAL** — This describes the *pre-monorepo* VS Code-only extension and a point-in-time
+> handoff (note the Windows `d:\tmp\` paths, which no longer apply). Kept for reference only.
+> For current docs see [README.md](../../README.md) and [CLAUDE.md](../../CLAUDE.md).
+
 # Project Handoff: Code Diff-Checker VS Code Extension
 
 ## What Is This Project?
