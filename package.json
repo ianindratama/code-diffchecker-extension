@@ -1,131 +1,26 @@
 {
-  "name": "code-diffchecker",
-  "displayName": "Code Diff-Checker",
-  "description": "Compare your local project against a final solution hosted on GitHub with a clean TreeView UI.",
+  "name": "code-diffchecker-monorepo",
   "version": "0.1.0",
-  "publisher": "dicodingacademy",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
-  "categories": [
-    "Education",
-    "Other"
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
-  "keywords": [
-    "diff",
-    "compare",
-    "education",
-    "student",
-    "solution"
-  ],
-  "activationEvents": [
-    "workspaceContains:.vscode/course-project.json"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "codeDiffChecker.fetchSolution",
-        "title": "Fetch Solution",
-        "category": "Code Diff-Checker",
-        "icon": "$(cloud-download)"
-      },
-      {
-        "command": "codeDiffChecker.refreshDiff",
-        "title": "Refresh Diff",
-        "category": "Code Diff-Checker",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "codeDiffChecker.clearCache",
-        "title": "Clear Cache",
-        "category": "Code Diff-Checker",
-        "icon": "$(trash)"
-      },
-      {
-        "command": "codeDiffChecker.compareCurrentFile",
-        "title": "Compare Current File with Solution",
-        "category": "Code Diff-Checker",
-        "icon": "$(diff)"
-      }
-    ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "codeDiffChecker",
-          "title": "Code Diff-Checker",
-          "icon": "$(diff)"
-        }
-      ]
-    },
-    "views": {
-      "codeDiffChecker": [
-        {
-          "id": "codeDiffCheckerTree",
-          "name": "Solution Diff",
-          "icon": "$(diff)"
-        }
-      ]
-    },
-    "viewsWelcome": [
-      {
-        "view": "codeDiffCheckerTree",
-        "contents": "No solution fetched yet.\n[Fetch Solution](command:codeDiffChecker.fetchSolution)\nMake sure your project has a `.vscode/course-project.json` configuration file."
-      }
-    ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "codeDiffChecker.fetchSolution",
-          "when": "view == codeDiffCheckerTree",
-          "group": "navigation"
-        },
-        {
-          "command": "codeDiffChecker.refreshDiff",
-          "when": "view == codeDiffCheckerTree",
-          "group": "navigation"
-        },
-        {
-          "command": "codeDiffChecker.clearCache",
-          "when": "view == codeDiffCheckerTree"
-        }
-      ],
-      "editor/context": [
-        {
-          "command": "codeDiffChecker.compareCurrentFile",
-          "when": "workspaceFolderCount > 0",
-          "group": "codeDiffChecker@1"
-        }
-      ],
-      "editor/title": [
-        {
-          "command": "codeDiffChecker.compareCurrentFile",
-          "when": "workspaceFolderCount > 0",
-          "group": "navigation"
-        }
-      ]
-    }
-  },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "node esbuild.js",
-    "watch": "node esbuild.js --watch",
-    "lint": "eslint src --ext ts",
-    "test": "vscode-test"
-  },
-  "dependencies": {
-    "minimatch": "^10.0.0"
+    "build": "npm run build:core && npm run build:vscode && npm run build:cli",
+    "build:core": "npm run build --workspace=@dicodingacademy/code-diffchecker-core",
+    "build:vscode": "npm run compile --workspace=code-diffchecker",
+    "build:cli": "npm run build --workspace=@dicodingacademy/code-diffchecker",
+    "watch": "npm run watch --workspace=code-diffchecker",
+    "lint": "eslint packages/*/src --ext ts",
+    "test": "npm run test --workspace=@dicodingacademy/code-diffchecker-core",
+    "test:all": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.0",
-    "@types/vscode": "^1.85.0",
-    "@vscode/test-cli": "^0.0.6",
-    "@vscode/test-electron": "^2.3.8",
-    "esbuild": "^0.20.0",
-    "eslint": "^8.56.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
     "typescript": "^5.3.0"
   }
 }
