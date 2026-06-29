@@ -1,5 +1,3 @@
-import * as vscode from 'vscode';
-
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 export interface CourseProjectConfig {
@@ -31,8 +29,10 @@ export interface DiffResult {
   relativePath: string;
   status: DiffStatus;
   isBinary: boolean;
-  localUri?: vscode.Uri;
-  solutionUri?: vscode.Uri;
+  /** Absolute path to the local file (present for 'modified' and 'deleted'). */
+  localPath?: string;
+  /** Absolute path to the solution file (present for 'added' and 'modified'). */
+  solutionPath?: string;
 }
 
 // ─── TreeView ─────────────────────────────────────────────────────────────────

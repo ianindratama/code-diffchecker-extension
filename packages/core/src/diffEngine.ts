@@ -1,9 +1,8 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { minimatch } from 'minimatch';
-import { DiffResult, DiffStatus } from './types';
+import { DiffResult } from './types';
 import { HARDCODED_IGNORE_PATTERNS, BINARY_CHECK_BYTES } from './constants';
 
 /**
@@ -46,7 +45,7 @@ export async function computeDiff(
         relativePath,
         status: 'added',
         isBinary,
-        solutionUri: vscode.Uri.file(solutionAbsolute),
+        solutionPath: solutionAbsolute,
       });
     } else if (inLocal && !inSolution) {
       // File exists only in local → student has extra file
@@ -55,7 +54,7 @@ export async function computeDiff(
         relativePath,
         status: 'deleted',
         isBinary,
-        localUri: vscode.Uri.file(localAbsolute),
+        localPath: localAbsolute,
       });
     } else if (inLocal && inSolution) {
       // File exists in both → check if content differs
@@ -70,8 +69,8 @@ export async function computeDiff(
           relativePath,
           status: 'modified',
           isBinary,
-          localUri: vscode.Uri.file(localAbsolute),
-          solutionUri: vscode.Uri.file(solutionAbsolute),
+          localPath: localAbsolute,
+          solutionPath: solutionAbsolute,
         });
       }
       // Unchanged files are skipped

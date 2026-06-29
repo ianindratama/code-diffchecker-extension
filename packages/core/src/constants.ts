@@ -1,8 +1,12 @@
 /** Minimum required Git version (major.minor). */
 export const MIN_GIT_VERSION = { major: 2, minor: 28 };
 
-/** Config filename inside the workspace .vscode directory. */
-export const CONFIG_FILENAME = '.vscode/course-project.json';
+/**
+ * Config filenames probed at the workspace root, in priority order.
+ * `.diffchecker.json` (root) takes precedence over the legacy
+ * `.vscode/course-project.json`.
+ */
+export const CONFIG_FILENAMES = ['.diffchecker.json', '.vscode/course-project.json'];
 
 /** Default timeout for long-running Git operations (clone, fetch) in ms. */
 export const GIT_CLONE_TIMEOUT_MS = 120_000; // 2 minutes
@@ -21,6 +25,7 @@ export const HARDCODED_IGNORE_PATTERNS: string[] = [
   '.git',
   '.git/**',
   '.DS_Store',
+  '.diffchecker.json',
   '.vscode/course-project.json',
 ];
 
