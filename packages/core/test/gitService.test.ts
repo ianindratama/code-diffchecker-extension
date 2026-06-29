@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { validateGitVersion } from '../gitService';
+import { validateGitVersion } from '../src/gitService';
 
 /**
  * Unit tests for gitService.ts — Git version validation.

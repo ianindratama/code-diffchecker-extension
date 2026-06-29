@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadConfig } from '../config';
+import { loadConfig } from '../src/config';
 
 /**
  * Unit tests for config.ts — config validation logic.

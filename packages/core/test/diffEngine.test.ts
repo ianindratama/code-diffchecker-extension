@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { computeDiff } from '../diffEngine';
+import { computeDiff } from '../src/diffEngine';
 
 /**
  * Unit tests for diffEngine.ts — diff computation and ignore logic.

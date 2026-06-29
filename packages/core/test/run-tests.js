@@ -1,20 +1,21 @@
 /**
- * Test runner script that bundles and runs tests with esbuild,
- * replacing the 'vscode' module with a mock.
+ * Test runner: bundles each test file with esbuild, then runs it with node.
+ * Core is editor-agnostic (no `vscode` imports), so no module alias is needed.
  */
 const esbuild = require('esbuild');
 const path = require('path');
 const { execSync } = require('child_process');
 const fs = require('fs');
 
+const packageRoot = path.resolve(__dirname, '..');
+
 const testFiles = [
-  'src/test/config.test.ts',
-  'src/test/gitService.test.ts',
-  'src/test/diffEngine.test.ts',
+  'test/config.test.ts',
+  'test/gitService.test.ts',
+  'test/diffEngine.test.ts',
 ];
 
-const mockPath = path.resolve(__dirname, 'src/test/__mocks__/vscode.js');
-const outDir = path.resolve(__dirname, 'out/test-bundled');
+const outDir = path.join(packageRoot, 'out/test-bundled');
 
 // Ensure output directory exists
 fs.mkdirSync(outDir, { recursive: true });
@@ -26,18 +27,14 @@ async function main() {
     const testName = path.basename(testFile, '.ts');
     const outFile = path.join(outDir, `${testName}.js`);
 
-    // Bundle the test with vscode mock
+    // Bundle the test (core + minimatch get inlined)
     try {
       await esbuild.build({
-        entryPoints: [testFile],
+        entryPoints: [path.join(packageRoot, testFile)],
         bundle: true,
         format: 'cjs',
         platform: 'node',
         outfile: outFile,
-        // Replace 'vscode' import with our mock
-        alias: {
-          'vscode': mockPath,
-        },
         logLevel: 'error',
       });
     } catch (err) {
