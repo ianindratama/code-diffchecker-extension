@@ -17,5 +17,5 @@
     "semi": ["error", "always"],
     "curly": "error"
   },
-  "ignorePatterns": ["out", "node_modules", "esbuild.js"]
+  "ignorePatterns": ["**/out", "**/dist", "**/node_modules", "**/esbuild.js", "**/run-tests.js"]
 }
