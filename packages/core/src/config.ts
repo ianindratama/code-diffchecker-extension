@@ -1,26 +1,48 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CourseProjectConfig } from './types';
-import { CONFIG_FILENAME } from './constants';
+import { CONFIG_FILENAMES } from './constants';
 
 /**
- * Loads and validates the course-project.json config from the workspace.
+ * Finds the first existing config file at the workspace root, probing
+ * CONFIG_FILENAMES in priority order (.diffchecker.json first, then the
+ * legacy .vscode/course-project.json).
+ *
+ * @returns The absolute path to the matched config file, or undefined if none exist.
+ */
+function findConfigPath(workspaceRoot: string): string | undefined {
+  for (const name of CONFIG_FILENAMES) {
+    const p = path.join(workspaceRoot, name);
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Loads and validates the project config from the workspace.
+ * Supports both `.diffchecker.json` (priority) and the legacy
+ * `.vscode/course-project.json`.
  *
  * @param workspaceRoot Absolute path to the workspace root.
  * @returns Parsed and validated config.
  * @throws Error with a descriptive message if config is missing, malformed, or invalid.
  */
 export async function loadConfig(workspaceRoot: string): Promise<CourseProjectConfig> {
-  const configPath = path.join(workspaceRoot, CONFIG_FILENAME);
+  const configPath = findConfigPath(workspaceRoot);
 
-  // Check file exists
-  if (!fs.existsSync(configPath)) {
+  // Check a config file exists
+  if (!configPath) {
     throw new Error(
-      `Configuration file not found: ${CONFIG_FILENAME}\n` +
-      'Make sure your project contains a .vscode/course-project.json file.'
+      `Configuration file not found.\n` +
+      `Make sure your project contains a ${CONFIG_FILENAMES[0]} ` +
+      `(or ${CONFIG_FILENAMES[1]}) file.`
     );
   }
+
+  // Name of the file that actually matched, for use in error messages.
+  const configName = path.relative(workspaceRoot, configPath);
 
   // Read file
   let rawContent: string;
@@ -28,7 +50,7 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
     rawContent = await fs.promises.readFile(configPath, 'utf-8');
   } catch (err) {
     throw new Error(
-      `Could not read configuration file: ${CONFIG_FILENAME}\n` +
+      `Could not read configuration file: ${configName}\n` +
       `Error: ${err instanceof Error ? err.message : String(err)}`
     );
   }
@@ -39,14 +61,14 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
     parsed = JSON.parse(rawContent);
   } catch {
     throw new Error(
-      `Invalid JSON in ${CONFIG_FILENAME}.\n` +
+      `Invalid JSON in ${configName}.\n` +
       'Please check for syntax errors (missing commas, quotes, etc.).'
     );
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error(
-      `${CONFIG_FILENAME} must contain a JSON object, not ${Array.isArray(parsed) ? 'an array' : typeof parsed}.`
+      `${configName} must contain a JSON object, not ${Array.isArray(parsed) ? 'an array' : typeof parsed}.`
     );
   }
 
@@ -55,14 +77,14 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
   // Validate required fields
   if (typeof config.repoUrl !== 'string' || config.repoUrl.trim() === '') {
     throw new Error(
-      `Missing or invalid "repoUrl" in ${CONFIG_FILENAME}.\n` +
+      `Missing or invalid "repoUrl" in ${configName}.\n` +
       'Expected a GitHub HTTPS URL, e.g. "https://github.com/owner/repo.git"'
     );
   }
 
   if (typeof config.branch !== 'string' || config.branch.trim() === '') {
     throw new Error(
-      `Missing or invalid "branch" in ${CONFIG_FILENAME}.\n` +
+      `Missing or invalid "branch" in ${configName}.\n` +
       'Expected a branch name, e.g. "main"'
     );
   }
@@ -70,7 +92,7 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
   // targetFolder is optional — empty string or "." means "repo root" (flat repo)
   if (config.targetFolder !== undefined && typeof config.targetFolder !== 'string') {
     throw new Error(
-      `Invalid "targetFolder" in ${CONFIG_FILENAME}.\n` +
+      `Invalid "targetFolder" in ${configName}.\n` +
       'Expected a folder name inside the repository, e.g. "wisatabandung", or "" for flat repos.'
     );
   }
@@ -79,7 +101,7 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
   const repoUrl = config.repoUrl.trim();
   if (!/^https:\/\/.+\/.+/.test(repoUrl)) {
     throw new Error(
-      `Invalid "repoUrl" in ${CONFIG_FILENAME}.\n` +
+      `Invalid "repoUrl" in ${configName}.\n` +
       `Got: "${repoUrl}"\n` +
       'Expected an HTTPS Git URL, e.g. "https://github.com/owner/repo.git"'
     );
@@ -90,7 +112,7 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
   if (config.ignorePaths !== undefined) {
     if (!Array.isArray(config.ignorePaths)) {
       throw new Error(
-        `Invalid "ignorePaths" in ${CONFIG_FILENAME}.\n` +
+        `Invalid "ignorePaths" in ${configName}.\n` +
         'Expected an array of glob patterns, e.g. ["build/", "*.iml"]'
       );
     }
@@ -114,9 +136,9 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
 }
 
 /**
- * Checks if the workspace contains a course-project.json config file.
+ * Checks if the workspace contains a recognized config file
+ * (`.diffchecker.json` or the legacy `.vscode/course-project.json`).
  */
 export function hasConfigFile(workspaceRoot: string): boolean {
-  const configPath = path.join(workspaceRoot, CONFIG_FILENAME);
-  return fs.existsSync(configPath);
+  return findConfigPath(workspaceRoot) !== undefined;
 }

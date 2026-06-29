@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execGit } from './processManager';
@@ -9,21 +8,22 @@ let cachedGitBinary: string | undefined;
 
 /**
  * Resolves the Git binary path.
- * Priority: VS Code git.path setting → 'git' on PATH.
+ * Priority: caller-supplied path (e.g. editor `git.path` setting) → 'git' on PATH.
+ *
+ * @param configuredGitPath Optional explicit path to a Git binary to try first.
  */
-export async function resolveGitBinary(): Promise<string> {
+export async function resolveGitBinary(configuredGitPath?: string): Promise<string> {
   if (cachedGitBinary) {
     return cachedGitBinary;
   }
 
-  // Try VS Code's configured git path first
-  const configuredPath = vscode.workspace.getConfiguration('git').get<string>('path');
-  if (configuredPath && configuredPath.trim() !== '') {
+  // Try the caller-supplied git path first
+  if (configuredGitPath && configuredGitPath.trim() !== '') {
     try {
-      const result = await execGit(configuredPath, ['--version'], process.cwd(), { timeoutMs: 5000 });
+      const result = await execGit(configuredGitPath, ['--version'], process.cwd(), { timeoutMs: 5000 });
       if (result.exitCode === 0) {
-        cachedGitBinary = configuredPath;
-        return configuredPath;
+        cachedGitBinary = configuredGitPath;
+        return configuredGitPath;
       }
     } catch {
       // Fall through to PATH lookup
@@ -43,7 +43,7 @@ export async function resolveGitBinary(): Promise<string> {
 
   throw new Error(
     'Git is not installed or not found in your PATH.\n' +
-    `Please install Git from ${GIT_DOWNLOAD_URL} and restart VS Code.`
+    `Please install Git from ${GIT_DOWNLOAD_URL} and try again.`
   );
 }
 
@@ -135,7 +135,7 @@ export async function cloneSparse(
         throw new Error(
           `Git clone failed (exit code ${cloneResult.exitCode}).\n` +
           `${cloneResult.stderr}\n` +
-          'Please check the repository URL and branch name in your course-project.json.'
+          'Please check the repository URL and branch name in your config file.'
         );
       }
     } else {
@@ -161,7 +161,7 @@ export async function cloneSparse(
         throw new Error(
           `Git clone failed (exit code ${cloneResult.exitCode}).\n` +
           `${cloneResult.stderr}\n` +
-          'Please check the repository URL and branch name in your course-project.json.'
+          'Please check the repository URL and branch name in your config file.'
         );
       }
 
@@ -200,7 +200,7 @@ export async function cloneSparse(
       if (!fs.existsSync(targetPath)) {
         throw new Error(
           `The folder "${targetFolder}" was not found in the repository.\n` +
-          'Please check the "targetFolder" value in your course-project.json.'
+          'Please check the "targetFolder" value in your config file.'
         );
       }
 
@@ -208,7 +208,7 @@ export async function cloneSparse(
       if (contents.length === 0) {
         throw new Error(
           `The folder "${targetFolder}" in the repository is empty.\n` +
-          'Please check the "targetFolder" value in your course-project.json.'
+          'Please check the "targetFolder" value in your config file.'
         );
       }
     }
