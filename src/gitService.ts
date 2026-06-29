@@ -98,6 +98,7 @@ export async function checkGitVersion(gitBinary: string): Promise<string> {
 
 /**
  * Clones a repository using Git sparse-checkout (only the target folder).
+ * If targetFolder is empty, clones the entire repo (flat repo mode).
  *
  * If any step fails, the cache directory is cleaned up.
  */
@@ -111,78 +112,105 @@ export async function cloneSparse(
   // Normalize all paths to forward slashes for Git
   const normalizedCacheDir = cacheDir.replace(/\\/g, '/');
   const normalizedRepoUrl = repoUrl.trim();
+  const isFlatRepo = targetFolder === '';
 
   try {
-    // Step 1: Clone (no checkout, sparse, shallow)
-    const cloneResult = await execGit(
-      gitBinary,
-      [
-        'clone',
-        '--filter=blob:none',
-        '--no-checkout',
-        '--depth', '1',
-        '--sparse',
-        '-b', branch,
-        normalizedRepoUrl,
+    if (isFlatRepo) {
+      // Flat repo: shallow clone without sparse-checkout
+      const cloneResult = await execGit(
+        gitBinary,
+        [
+          'clone',
+          '--filter=blob:none',
+          '--depth', '1',
+          '-b', branch,
+          normalizedRepoUrl,
+          normalizedCacheDir,
+        ],
+        path.dirname(normalizedCacheDir),
+        { timeoutMs: GIT_CLONE_TIMEOUT_MS }
+      );
+
+      if (cloneResult.exitCode !== 0) {
+        throw new Error(
+          `Git clone failed (exit code ${cloneResult.exitCode}).\n` +
+          `${cloneResult.stderr}\n` +
+          'Please check the repository URL and branch name in your course-project.json.'
+        );
+      }
+    } else {
+      // Subfolder mode: sparse-checkout clone
+      // Step 1: Clone (no checkout, sparse, shallow)
+      const cloneResult = await execGit(
+        gitBinary,
+        [
+          'clone',
+          '--filter=blob:none',
+          '--no-checkout',
+          '--depth', '1',
+          '--sparse',
+          '-b', branch,
+          normalizedRepoUrl,
+          normalizedCacheDir,
+        ],
+        path.dirname(normalizedCacheDir),
+        { timeoutMs: GIT_CLONE_TIMEOUT_MS }
+      );
+
+      if (cloneResult.exitCode !== 0) {
+        throw new Error(
+          `Git clone failed (exit code ${cloneResult.exitCode}).\n` +
+          `${cloneResult.stderr}\n` +
+          'Please check the repository URL and branch name in your course-project.json.'
+        );
+      }
+
+      // Step 2: Set sparse-checkout to target folder
+      const sparseResult = await execGit(
+        gitBinary,
+        ['sparse-checkout', 'set', targetFolder],
         normalizedCacheDir,
-      ],
-      path.dirname(normalizedCacheDir),
-      { timeoutMs: GIT_CLONE_TIMEOUT_MS }
-    );
-
-    if (cloneResult.exitCode !== 0) {
-      throw new Error(
-        `Git clone failed (exit code ${cloneResult.exitCode}).\n` +
-        `${cloneResult.stderr}\n` +
-        'Please check the repository URL and branch name in your course-project.json.'
+        { timeoutMs: GIT_QUICK_TIMEOUT_MS }
       );
-    }
 
-    // Step 2: Set sparse-checkout to target folder
-    const sparseResult = await execGit(
-      gitBinary,
-      ['sparse-checkout', 'set', targetFolder],
-      normalizedCacheDir,
-      { timeoutMs: GIT_QUICK_TIMEOUT_MS }
-    );
+      if (sparseResult.exitCode !== 0) {
+        throw new Error(
+          `Git sparse-checkout failed (exit code ${sparseResult.exitCode}).\n` +
+          `${sparseResult.stderr}`
+        );
+      }
 
-    if (sparseResult.exitCode !== 0) {
-      throw new Error(
-        `Git sparse-checkout failed (exit code ${sparseResult.exitCode}).\n` +
-        `${sparseResult.stderr}`
+      // Step 3: Checkout to actually fetch the blobs
+      const checkoutResult = await execGit(
+        gitBinary,
+        ['checkout'],
+        normalizedCacheDir,
+        { timeoutMs: GIT_CLONE_TIMEOUT_MS }
       );
-    }
 
-    // Step 3: Checkout to actually fetch the blobs
-    const checkoutResult = await execGit(
-      gitBinary,
-      ['checkout'],
-      normalizedCacheDir,
-      { timeoutMs: GIT_CLONE_TIMEOUT_MS }
-    );
+      if (checkoutResult.exitCode !== 0) {
+        throw new Error(
+          `Git checkout failed (exit code ${checkoutResult.exitCode}).\n` +
+          `${checkoutResult.stderr}`
+        );
+      }
 
-    if (checkoutResult.exitCode !== 0) {
-      throw new Error(
-        `Git checkout failed (exit code ${checkoutResult.exitCode}).\n` +
-        `${checkoutResult.stderr}`
-      );
-    }
+      // Step 4: Verify the target folder actually exists and has files
+      const targetPath = path.join(cacheDir, targetFolder);
+      if (!fs.existsSync(targetPath)) {
+        throw new Error(
+          `The folder "${targetFolder}" was not found in the repository.\n` +
+          'Please check the "targetFolder" value in your course-project.json.'
+        );
+      }
 
-    // Step 4: Verify the target folder actually exists and has files
-    const targetPath = path.join(cacheDir, targetFolder);
-    if (!fs.existsSync(targetPath)) {
-      throw new Error(
-        `The folder "${targetFolder}" was not found in the repository.\n` +
-        'Please check the "targetFolder" value in your course-project.json.'
-      );
-    }
-
-    const contents = await fs.promises.readdir(targetPath);
-    if (contents.length === 0) {
-      throw new Error(
-        `The folder "${targetFolder}" in the repository is empty.\n` +
-        'Please check the "targetFolder" value in your course-project.json.'
-      );
+      const contents = await fs.promises.readdir(targetPath);
+      if (contents.length === 0) {
+        throw new Error(
+          `The folder "${targetFolder}" in the repository is empty.\n` +
+          'Please check the "targetFolder" value in your course-project.json.'
+        );
+      }
     }
   } catch (err) {
     // Clean up on ANY failure

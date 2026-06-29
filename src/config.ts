@@ -67,10 +67,11 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
     );
   }
 
-  if (typeof config.targetFolder !== 'string' || config.targetFolder.trim() === '') {
+  // targetFolder is optional — empty string or "." means "repo root" (flat repo)
+  if (config.targetFolder !== undefined && typeof config.targetFolder !== 'string') {
     throw new Error(
-      `Missing or invalid "targetFolder" in ${CONFIG_FILENAME}.\n` +
-      'Expected a folder name inside the repository, e.g. "wisatabandung"'
+      `Invalid "targetFolder" in ${CONFIG_FILENAME}.\n` +
+      'Expected a folder name inside the repository, e.g. "wisatabandung", or "" for flat repos.'
     );
   }
 
@@ -98,10 +99,16 @@ export async function loadConfig(workspaceRoot: string): Promise<CourseProjectCo
     );
   }
 
+  // Normalize targetFolder: undefined, empty, or "." all mean repo root
+  let targetFolder = typeof config.targetFolder === 'string' ? config.targetFolder.trim() : '';
+  if (targetFolder === '.') {
+    targetFolder = '';
+  }
+
   return {
     repoUrl,
     branch: config.branch.trim(),
-    targetFolder: config.targetFolder.trim(),
+    targetFolder,
     ignorePaths,
   };
 }

@@ -20,14 +20,11 @@ export function getCacheDir(
 
 /**
  * Checks if the cache directory is valid (exists and has the target folder with files).
+ * When targetFolder is empty (flat repo), validates the cache root directly.
  */
 export function isCacheValid(cacheDir: string, targetFolder: string): boolean {
   try {
-    const targetPath = path.join(cacheDir, targetFolder);
-
-    if (!fs.existsSync(cacheDir)) {
-      return false;
-    }
+    const targetPath = targetFolder === '' ? cacheDir : path.join(cacheDir, targetFolder);
 
     if (!fs.existsSync(targetPath)) {
       return false;

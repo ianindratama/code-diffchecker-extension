@@ -128,7 +128,7 @@ async function fetchSolutionCommand(
         // Step 1: Load config
         progress.report({ message: 'Reading configuration...' });
         const config = await loadConfig(workspaceRoot);
-        log(`Config loaded: ${config.repoUrl} @ ${config.branch} → ${config.targetFolder}`);
+        log(`Config loaded: ${config.repoUrl} @ ${config.branch}${config.targetFolder ? ' → ' + config.targetFolder : ' (flat repo)'}`);
 
         // Step 2: Resolve and validate Git
         progress.report({ message: 'Checking Git installation...' });
@@ -303,7 +303,7 @@ async function compareCurrentFileCommand(
         const relativePath = path.relative(workspaceRoot, localAbsolute).replace(/\\/g, '/');
 
         // Step 5: Find the corresponding solution file
-        const solutionRoot = path.join(cacheDir, config.targetFolder);
+        const solutionRoot = config.targetFolder ? path.join(cacheDir, config.targetFolder) : cacheDir;
         const solutionAbsolute = path.join(solutionRoot, relativePath);
         const solutionUri = vscode.Uri.file(solutionAbsolute);
 
@@ -525,7 +525,7 @@ async function computeAndDisplayDiff(
   treeProvider: DiffTreeViewProvider,
   treeView: vscode.TreeView<import('./treeViewProvider').DiffTreeItem>
 ): Promise<void> {
-  const solutionRoot = path.join(cacheDir, config.targetFolder);
+  const solutionRoot = config.targetFolder ? path.join(cacheDir, config.targetFolder) : cacheDir;
   const diffResults = await computeDiff(workspaceRoot, solutionRoot, config.ignorePaths);
   treeProvider.refresh(diffResults);
 

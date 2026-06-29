@@ -90,12 +90,25 @@ async function testMissingTargetFolder(): Promise<void> {
   }));
 
   try {
-    await loadConfig(tmpDir);
-    assert.fail('Should have thrown');
-  } catch (err: unknown) {
-    assert.ok(err instanceof Error);
-    assert.ok(err.message.includes('targetFolder'), `Expected error about targetFolder, got: ${err.message}`);
-    console.log('  ✅ Missing targetFolder throws descriptive error');
+    const config = await loadConfig(tmpDir);
+    assert.strictEqual(config.targetFolder, '', 'Missing targetFolder should default to empty string');
+    console.log('  ✅ Missing targetFolder defaults to "" (flat repo)');
+  } finally {
+    cleanupTempWorkspace(tmpDir);
+  }
+}
+
+async function testFlatRepoWithDot(): Promise<void> {
+  const tmpDir = createTempWorkspace(JSON.stringify({
+    repoUrl: 'https://github.com/owner/repo.git',
+    branch: 'main',
+    targetFolder: '.',
+  }));
+
+  try {
+    const config = await loadConfig(tmpDir);
+    assert.strictEqual(config.targetFolder, '', 'targetFolder "." should normalize to empty string');
+    console.log('  ✅ targetFolder "." normalizes to "" (flat repo)');
   } finally {
     cleanupTempWorkspace(tmpDir);
   }
@@ -191,6 +204,7 @@ async function runAll(): Promise<void> {
   await testMissingRepoUrl();
   await testMissingBranch();
   await testMissingTargetFolder();
+  await testFlatRepoWithDot();
   await testInvalidRepoUrl();
   await testMalformedJson();
   await testMissingIgnorePathsDefaults();
