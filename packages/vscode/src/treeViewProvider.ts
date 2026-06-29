@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { DiffResult, DiffTreeNode, DiffStatus } from './types';
+import { DiffResult, DiffTreeNode, DiffStatus } from '@dicodingacademy/code-diffchecker-core';
 
 /**
  * TreeView data provider that renders a hierarchical view of file diffs.
@@ -199,8 +199,8 @@ export class DiffTreeViewProvider implements vscode.TreeDataProvider<DiffTreeIte
     // For 'added' files (only in solution), show empty local vs solution
     // For 'deleted' files (only in local), show local vs empty solution
     // For 'modified' files, show local vs solution
-    const leftUri = diff.localUri ?? vscode.Uri.parse('untitled:empty');
-    const rightUri = diff.solutionUri ?? vscode.Uri.parse('untitled:empty');
+    const leftUri = diff.localPath ? vscode.Uri.file(diff.localPath) : vscode.Uri.parse('untitled:empty');
+    const rightUri = diff.solutionPath ? vscode.Uri.file(diff.solutionPath) : vscode.Uri.parse('untitled:empty');
 
     return {
       command: 'vscode.diff',

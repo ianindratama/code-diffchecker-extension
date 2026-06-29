@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { loadConfig, hasConfigFile } from './config';
-import { resolveGitBinary, checkGitVersion, cloneSparse, checkForUpdates, pullUpdate } from './gitService';
-import { getCacheDir, isCacheValid, nukeCache, clearAllCaches, ensureStorageDir } from './cacheManager';
-import { computeDiff, isFileBinary } from './diffEngine';
+import {
+  loadConfig, hasConfigFile, checkGitVersion, cloneSparse, checkForUpdates, pullUpdate,
+  getCacheDir, isCacheValid, nukeCache, clearAllCaches, ensureStorageDir,
+  computeDiff, isFileBinary, CourseProjectConfig,
+} from '@dicodingacademy/code-diffchecker-core';
+import { resolveGitBinary } from './gitBinary';
 import { DiffTreeViewProvider } from './treeViewProvider';
-import { CourseProjectConfig } from './types';
 
 /** Output channel for logging. */
 let outputChannel: vscode.OutputChannel;
